@@ -14,7 +14,7 @@ CMSIS_PLAT_SRC = $(CMSIS_LIB)/DeviceSupport/$(VENDOR)/$(PLAT)
 
 all: main.bin
 
-main.bin: kernel.c context_switch.s syscall.s syscall.h
+main.bin: kernel.c kernel.h context_switch.s syscall.s syscall.h
 	$(CROSS_COMPILE)gcc \
 		-DUSER_NAME=\"$(USER)\" \
 		-Wl,-Tmain.ld -nostartfiles \
@@ -41,6 +41,7 @@ main.bin: kernel.c context_switch.s syscall.s syscall.h
 		syscall.s \
 		stm32_p103.c \
 		kernel.c \
+		unit_test.c \
 		memcpy.s
 	$(CROSS_COMPILE)objcopy -Obinary main.elf main.bin
 	$(CROSS_COMPILE)objdump -S main.elf > main.list
@@ -52,7 +53,6 @@ qemudbg: main.bin $(QEMU_STM32)
 	$(QEMU_STM32) -M stm32-p103 \
 		-gdb tcp::3333 -S \
 		-kernel main.bin
-
 
 qemu_remote: main.bin $(QEMU_STM32)
 	$(QEMU_STM32) -M stm32-p103 -kernel main.bin -vnc :1
@@ -89,5 +89,44 @@ qemuauto_remote: main.bin gdbscript
 	$(CROSS_COMPILE)gdb -x gdbscript&
 	sleep 5
 
+check: unit_test.c unit_test.h
+	$(MAKE) main.bin DEBUG_FLAGS=-DDEBUG
+	$(QEMU_STM32) -M stm32-p103 \
+                -gdb tcp::3333 -S \
+                -serial stdio \
+                -kernel main.bin -monitor null >/dev/null &	 
+	@echo
+	$(CROSS_COMPILE)gdb -batch -x test-strlen.in
+	@mv -f gdb.txt test-strlen.txt
+	@echo
+	$(CROSS_COMPILE)gdb -batch -x test-strcpy.in
+	@mv -f gdb.txt test-strcpy.txt
+	@echo
+	$(CROSS_COMPILE)gdb -batch -x test-strcmp.in
+	@mv -f gdb.txt test-strcmp.txt
+	@echo
+	$(CROSS_COMPILE)gdb -batch -x test-strncmp.in
+	@mv -f gdb.txt test-strncmp.txt
+	@echo
+	$(CROSS_COMPILE)gdb -batch -x test-cmdtok.in
+	@mv -f gdb.txt test-cmdtok.txt
+	@echo
+	$(CROSS_COMPILE)gdb -batch -x test-itoa.in
+	@mv -f gdb.txt test-itoa.txt
+	@echo
+	$(CROSS_COMPILE)gdb -batch -x test-find_events.in
+	@mv -f gdb.txt test-find_events.txt
+	@echo
+	$(CROSS_COMPILE)gdb -batch -x test-find_envvar.in
+	@mv -f gdb.txt test-find_envvar.txt
+	@echo
+	$(CROSS_COMPILE)gdb -batch -x test-fill_arg.in
+	@mv -f gdb.txt test-fill_arg.txt
+	@echo
+	$(CROSS_COMPILE)gdb -batch -x test-export_envvar.in
+	@mv -f gdb.txt test-export_envvar.txt
+	@echo
+	@pkill -9 $(notdir $(QEMU_STM32))
+	
 clean:
 	rm -f *.elf *.bin *.list

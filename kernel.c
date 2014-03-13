@@ -1,9 +1,19 @@
 #include "stm32f10x.h"
 #include "RTOSConfig.h"
 
+#include "kernel.h"
 #include "syscall.h"
-
+#ifdef DEBUG
+#include "unit_test.h"
+#endif
 #include <stddef.h>
+#include <ctype.h>
+
+void *malloc(size_t size)
+{
+	static char m[1024] = {0};
+	return m;
+}
 
 void *memcpy(void *dest, const void *src, size_t n);
 
@@ -60,6 +70,7 @@ void puts(char *s)
 	}
 }
 
+/*
 #define MAX_CMDNAME 19
 #define MAX_ARGC 19
 #define MAX_CMDHELP 1023
@@ -68,6 +79,8 @@ void puts(char *s)
 #define MAX_ENVCOUNT 30
 #define MAX_ENVNAME 15
 #define MAX_ENVVALUE 127
+*/
+
 #define STACK_SIZE 512 /* Size of task stacks in words */
 #define TASK_LIMIT 8  /* Max number of tasks we can handle */
 #define PIPE_BUF   64 /* Size of largest atomic pipe message */
@@ -109,6 +122,7 @@ void show_history(int argc, char *argv[]);
 void show_hello(int argc, char *argv[]);
 
 /* Enumeration for command types. */
+/*
 enum {
 	CMD_ECHO = 0,
 	CMD_EXPORT,
@@ -119,6 +133,7 @@ enum {
 	CMD_HELLO,
 	CMD_COUNT
 } CMD_TYPE;
+*/
 /* Structure for command handler. */
 typedef struct {
 	char cmd[MAX_CMDNAME + 1];
@@ -136,10 +151,13 @@ const hcmd_entry cmd_data[CMD_COUNT] = {
 };
 
 /* Structure for environment variables. */
+/*
 typedef struct {
 	char name[MAX_ENVNAME + 1];
 	char value[MAX_ENVVALUE + 1];
 } evar_entry;
+*/
+
 evar_entry env_var[MAX_ENVCOUNT];
 int env_count = 0;
 
@@ -304,13 +322,13 @@ void serialin(USART_TypeDef* uart, unsigned int intr)
 	mkfifo("/dev/tty0/in", 0);
 	fd = open("/dev/tty0/in", 0);
 
-    USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
+    	USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
 
 	while (1) {
 		interrupt_wait(intr);
 		if (USART_GetFlagStatus(uart, USART_FLAG_RXNE) == SET) {
 			c = USART_ReceiveData(uart);
-			write(fd, &c, 1);
+			write(fd, &c, 1);					//charactor input from keyboard
 		}
 	}
 }
@@ -1311,6 +1329,10 @@ int main()
 			i++;
 		current_task = task_pop(&ready_list[i])->pid;
 	}
+
+	#ifdef DEBUG
+		unit_test();
+	#endif
 
 	return 0;
 }
